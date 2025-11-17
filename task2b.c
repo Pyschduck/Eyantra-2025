@@ -129,7 +129,7 @@ void *control_loop(void *arg)
     // -----------------------------
     // PID constants
     // -----------------------------
-    float Kp = 7.5f;
+    float Kp = 7.9f;
     float Ki = 0.001f;
     float Kd = 4.0f;
 
@@ -173,7 +173,7 @@ void *control_loop(void *arg)
             for (int i = 0; i < 5; i++)
                 ir[i] = 1 - raw[i];
         }
-        else
+        else if(!white_line_mode && box_count>=3)
         {
             for (int i = 0; i < 5; i++)
                 ir[i] = raw[i];
@@ -236,8 +236,8 @@ void *control_loop(void *arg)
 
         // -----------------------------
         // Node logic (only on black line)
-        // -----------------------------
-        if (!white_line_mode && ir[2] <= 0.4 && ir[3] <= 0.4 && ir[4] <= 0.4)
+        // // -----------------------------
+        if (!white_line_mode && ir[2] >= 0.4 && ir[3] >= 0.4 && ir[4] >= 0.4)
         {
             nodecount++;
             set_motor(c, 0.0, 0.0);
