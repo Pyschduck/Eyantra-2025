@@ -129,8 +129,8 @@ void *control_loop(void *arg)
     // -----------------------------
     // PID constants
     // -----------------------------
-    float Kp = 7.9f;
-    float Ki = 0.001f;
+    float Kp = 8.0f;
+    float Ki = 0.0001f;
     float Kd = 4.0f;
 
     float integral = 0.0f;
@@ -146,6 +146,7 @@ void *control_loop(void *arg)
     const float switch_thresh_low = 0.4f;
     const float alpha = 0.1f;
 
+    bool isTjunc = false;
     int nodecount = 0;
     SLEEP(1000);
 
@@ -173,7 +174,7 @@ void *control_loop(void *arg)
             for (int i = 0; i < 5; i++)
                 ir[i] = 1 - raw[i];
         }
-        else if(!white_line_mode && box_count>=3)
+        else if (!white_line_mode && box_count >= 3)
         {
             for (int i = 0; i < 5; i++)
                 ir[i] = raw[i];
@@ -184,25 +185,31 @@ void *control_loop(void *arg)
         // -----------------------------
         int weights[5] = {-2, -1, 0, 1, 2};
         float sum_ir = ir[0] + ir[1] + ir[2] + ir[3] + ir[4];
-        if (sum_ir == 0) sum_ir = 1;
+        if (sum_ir == 0)
+            sum_ir = 1;
 
-        float error = (weights[0]*ir[0] + weights[1]*ir[1] + weights[2]*ir[2] +
-                       weights[3]*ir[3] + weights[4]*ir[4]) / sum_ir;
+        float error = (weights[0] * ir[0] + weights[1] * ir[1] + weights[2] * ir[2] +
+                       weights[3] * ir[3] + weights[4] * ir[4]) /
+                      sum_ir;
 
         integral += error;
         float derivative = error - prev_error;
         prev_error = error;
 
-        float correction = Kp*error + Ki*integral + Kd*derivative;
+        float correction = Kp * error + Ki * integral + Kd * derivative;
 
         float left_speed = base_speed - correction;
         float right_speed = base_speed + correction;
 
         // Speed limits
-        if (left_speed > max_speed) left_speed = max_speed;
-        if (left_speed < -max_speed) left_speed = -max_speed;
-        if (right_speed > max_speed) right_speed = max_speed;
-        if (right_speed < -max_speed) right_speed = -max_speed;
+        if (left_speed > max_speed)
+            left_speed = max_speed;
+        if (left_speed < -max_speed)
+            left_speed = -max_speed;
+        if (right_speed > max_speed)
+            right_speed = max_speed;
+        if (right_speed < -max_speed)
+            right_speed = -max_speed;
 
         // -----------------------------
         // Box handling
@@ -237,27 +244,33 @@ void *control_loop(void *arg)
         // -----------------------------
         // Node logic (only on black line)
         // // -----------------------------
-        if (!white_line_mode && ir[2] >= 0.4 && ir[3] >= 0.4 && ir[4] >= 0.4)
+        if (!white_line_mode && ir[0] >= 0.5 && ir[1] >= 0.5 && ir[2] >= 0.5 && ir[3] >= 0.5 && ir[4] >= 0.5)
         {
-            nodecount++;
+            isTjunc = true;
             set_motor(c, 0.0, 0.0);
             SLEEP(1000);
+            if (strcmp(box_color, "red") == 0 || strcmp(box_color, "green") == 0)
+            {
+                set_motor(c, 0.0, 3.0); // turn right
+                SLEEP(1300);
+            }
+            else if (strcmp(box_color, "blue") == 0)
+            {
+                set_motor(c, 3.0, 0.0); // turn right
+                SLEEP(1300);
+            }
+        }
+        if (white_line_mode && ir[1] >= 0.5 && ir[2] >= 0.5 && ir[3] >= 0.5 && isTjunc)
+        {
+            nodecount++;
             if (nodecount == 1)
             {
-                if (strcmp(box_color, "red") == 0 || strcmp(box_color, "green") == 0)
-                {
-                    set_motor(c, 0.0, 3.0); // turn right
-                    SLEEP(1300);
-                }
-                else if (strcmp(box_color, "blue") == 0)
-                {
-                    set_motor(c, 3.0, 0.0); // turn right
-                    SLEEP(1300);
-                }
+                set_motor(c, 0.0, 0.0);
+                SLEEP(1000);
             }
             else if (nodecount == 2)
             {
-                set_motor(c, 0.0, 0.0); // stop
+                set_motor(c, 0.0, 0.0);
                 SLEEP(1000);
                 drop_box(c);
             }
@@ -269,7 +282,6 @@ void *control_loop(void *arg)
 
     return NULL;
 }
-
 
 /**
  * @brief Main function
